@@ -1,29 +1,30 @@
 import mongoose from "mongoose";
 
-const userSchema = new mongoose.Schema(
+const { Schema } = mongoose;
+
+const UserSchema = new Schema(
   {
     username: {
       type: String,
       required: true,
+      trim: true,
       unique: true,
     },
     email: {
       type: String,
       required: true,
+      trim: true,
       unique: true,
-    },
-    tempEmail: {
-      type: String, // Lưu email tạm thời khi cập nhật
     },
     phone: {
       type: String,
       required: true,
+      trim: true,
       unique: true,
     },
     password: {
       type: String,
       required: true,
-      select: false,
     },
     dateOfBirth: {
       type: Date,
@@ -31,9 +32,20 @@ const userSchema = new mongoose.Schema(
     },
     avatar: {
       type: String,
+      trim: true,
     },
     description: {
       type: String,
+      trim: true,
+    },
+    role: {
+      type: String,
+      enum: ["user", "doctor", "admin"],
+      default: "user",
+    },
+    balance: {
+      type: Number,
+      default: 0,
     },
     isVerified: {
       type: Boolean,
@@ -42,10 +54,7 @@ const userSchema = new mongoose.Schema(
     verifyToken: {
       type: String,
     },
-    emailVerificationCode: {
-      type: String,
-    },
-    emailVerificationExpires: {
+    verifyTokenExpires: {
       type: Date,
     },
     resetPasswordCode: {
@@ -54,28 +63,27 @@ const userSchema = new mongoose.Schema(
     resetPasswordExpires: {
       type: Date,
     },
-    balance: {
-      type: Number,
-      default: 0,
-    },
-    role: {
+    emailVerificationCode: {
       type: String,
-      default: "user",
     },
-    status: {
+    emailVerificationExpires: {
+      type: Date,
+    },
+    tempEmail: {
       type: String,
-      default: "active",
     },
     likedBlogs: [
       {
-        type: mongoose.Schema.Types.ObjectId,
+        type: Schema.Types.ObjectId,
         ref: "Blog",
       },
     ],
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-export default mongoose.model("User", userSchema);
+UserSchema.index({ email: 1 });
+UserSchema.index({ username: 1 });
+UserSchema.index({ phone: 1 });
+
+export default mongoose.model("User", UserSchema);

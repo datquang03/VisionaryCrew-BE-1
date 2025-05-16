@@ -22,12 +22,11 @@ export const sendVerificationEmail = async (email, token) => {
       html: `
         <p>Nhấn vào liên kết bên dưới để xác minh tài khoản của bạn:</p>
         <a href="${verifyLink}">${verifyLink}</a>
+        <p>Liên kết này sẽ hết hạn sau 15 phút. Nếu không xác minh, tài khoản của bạn sẽ bị xóa.</p>
       `,
     });
-    console.log(`Verification email sent to ${email}`);
   } catch (error) {
-    console.error("Error sending verification email:", error);
-    throw new Error("Failed to send verification email");
+    throw new Error("Không tìm thấy email của người dùng");
   }
 };
 
@@ -45,10 +44,8 @@ export const sendResetPasswordEmail = async (email, resetCode) => {
         <p>Nếu bạn không yêu cầu khôi phục mật khẩu, vui lòng bỏ qua email này.</p>
       `,
     });
-    console.log(`Reset password email sent to ${email}`);
   } catch (error) {
-    console.error("Error sending reset password email:", error);
-    throw new Error("Failed to send reset password email");
+    throw new Error("Không tìm thấy email của người dùng");
   }
 };
 
@@ -66,9 +63,7 @@ export const sendProfileEmailVerificationCode = async (email, code) => {
         <p>Nếu bạn không thực hiện thay đổi này, vui lòng bỏ qua email này.</p>
       `,
     });
-    console.log(`Profile email verification code sent to ${email}`);
   } catch (error) {
-    console.error("Error sending profile email verification code:", error);
-    throw new Error("Failed to send profile email verification code");
+    throw new Error("Không tìm thấy email của người dùng");
   }
 };

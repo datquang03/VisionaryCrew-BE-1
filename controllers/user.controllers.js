@@ -123,20 +123,25 @@ export const login = asyncHandler(async (req, res) => {
 export const verifyEmail = asyncHandler(async (req, res) => {
   const { token } = req.params;
 
-  console.log("Received verification request:", { token }); // Debug log
-
   // Tìm người dùng với token
   const user = await User.findOne({ verifyToken: token });
   if (!user) {
-    console.log("No user found with token:", { token }); // Debug log
     return res
       .status(400)
       .json({ message: "Mã xác thực không hợp lệ hoặc đã hết hạn." });
   }
 
+  // Kiểm tra xem token đã hết hạn chưa
+  if (user.verifyTokenExpires < Date.now()) {
+    await User.deleteOne({ _id: user._id });
+    return res.status(400).json({
+      message:
+        "Mã xác thực đã hết hạn. Tài khoản đã bị xóa. Vui lòng đăng ký lại.",
+    });
+  }
+
   // Kiểm tra trạng thái xác minh
   if (user.isVerified) {
-    console.log("User already verified:", user.email); // Debug log
     return res.status(400).json({ message: "Tài khoản đã được xác minh." });
   }
 
@@ -145,19 +150,17 @@ export const verifyEmail = asyncHandler(async (req, res) => {
     { verifyToken: token, isVerified: false },
     {
       $set: { isVerified: true },
-      $unset: { verifyToken: "" }, // Xóa trường verifyToken
+      $unset: { verifyToken: "", verifyTokenExpires: "" }, // Xóa verifyToken và verifyTokenExpires
     },
     { new: true }
   );
 
   if (!updatedUser) {
-    console.log("Update failed for token:", { token }); // Debug log
     return res
       .status(500)
       .json({ message: "Lỗi khi cập nhật trạng thái xác minh." });
   }
 
-  console.log("Verification successful for:", updatedUser.email); // Debug log
   res.status(200).json({ message: "Xác minh tài khoản thành công." });
 });
 
