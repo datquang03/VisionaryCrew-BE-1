@@ -2,17 +2,6 @@ import mongoose from "mongoose";
 
 const { Schema } = mongoose;
 
-//userLikedSchema
-const userLikedSchema = new Schema(
-  {
-    userId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-    },
-  },
-  { timestamps: true }
-);
-
 // CommentSchema cho bình luận
 const CommentSchema = new Schema(
   {
@@ -57,7 +46,12 @@ const BlogSchema = new Schema(
       trim: true,
       required: true,
     },
-    likes: [userLikedSchema],
+    likedUsers: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
     image: {
       type: String,
       trim: true,
@@ -80,6 +74,7 @@ const BlogSchema = new Schema(
 // Tạo index để tối ưu truy vấn
 BlogSchema.index({ author: 1, createdAt: -1 });
 BlogSchema.index({ category: 1 });
+BlogSchema.index({ likedUsers: 1 }); // Thêm index cho likedUsers
 // Tạo text index để hỗ trợ tìm kiếm theo tên
 BlogSchema.index({ name: "text" });
 

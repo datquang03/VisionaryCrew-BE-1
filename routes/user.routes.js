@@ -9,6 +9,10 @@ import {
   updateProfile,
   getUser,
   getAllUsers,
+  addLikedBlog,
+  unlikedSingleBlog,
+  unlikedAllBlogs,
+  getLikedBlogsById,
 } from "../controllers/user.controllers.js";
 import { admin, protectRouter } from "../middlewares/auth.js";
 
@@ -29,6 +33,10 @@ router.post(
   protectRouter,
   verifyProfileEmailCode
 );
+router.post("/like", protectRouter, addLikedBlog);
+router.get("/like/:id", protectRouter, getLikedBlogsById);
+router.delete("/like/:blogId", protectRouter, unlikedSingleBlog);
+router.delete("/like", protectRouter, unlikedAllBlogs);
 
 // ADMIN ROUTER
 router.get("/", protectRouter, admin, getAllUsers);

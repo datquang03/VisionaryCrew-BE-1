@@ -39,24 +39,18 @@ export const createBlog = asyncHandler(async (req, res) => {
 
 // Lấy tất cả blog (public, hỗ trợ phân trang và tìm kiếm)
 export const getAllBlogs = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10, search } = req.query;
+  const { page = 1, limit = 10 } = req.query;
   const skip = (parseInt(page) - 1) * parseInt(limit);
-
-  // Điều kiện tìm kiếm
-  const query = {};
-  if (search) {
-    query.name = { $regex: search, $options: "i" }; // Tìm kiếm không phân biệt hoa thường
-  }
-
-  const blogs = await Blog.find(query)
+  const blogs = await Blog.find({})
     .skip(skip)
     .limit(parseInt(limit))
     .sort({ createdAt: -1 })
-    .populate("category") // Populate full thông tin category
+    .populate({ path: "category", select: "name description" })
     .populate({
       path: "author",
-      select: "-password", // Loại bỏ password
-    });
+      select: "username avatar role",
+    })
+    .populate({ path: "likedUsers", select: "username avatar role" });
 
   if (!blogs.length) {
     return res.status(404).json({ message: "Không tìm thấy bài blog nào" });
@@ -66,7 +60,7 @@ export const getAllBlogs = asyncHandler(async (req, res) => {
     blogs,
     page: parseInt(page),
     limit: parseInt(limit),
-    total: await Blog.countDocuments(query),
+    total: await Blog.countDocuments({}),
   });
 });
 
@@ -74,16 +68,13 @@ export const getAllBlogs = asyncHandler(async (req, res) => {
 export const getBlogById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  if (!mongoose.isValidObjectId(id)) {
-    return res.status(400).json({ message: "ID bài blog không hợp lệ" });
-  }
-
   const blog = await Blog.findById(id)
-    .populate("category") // Populate full thông tin category
+    .populate({ path: "category", select: "name description" })
     .populate({
       path: "author",
-      select: "-password", // Loại bỏ password
-    });
+      select: "username avatar role",
+    })
+    .populate({ path: "likedUsers", select: "username avatar role" });
 
   if (!blog) {
     return res.status(404).json({ message: "Không tìm thấy bài blog" });

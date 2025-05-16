@@ -4,6 +4,7 @@ import asyncHandler from "express-async-handler";
 import { generateToken } from "../middlewares/auth.js";
 import crypto from "crypto";
 import moment from "moment";
+import Blog from "../models/blog/blog.models.js";
 import {
   sendVerificationEmail,
   sendResetPasswordEmail,
@@ -408,27 +409,169 @@ export const updateProfile = asyncHandler(async (req, res) => {
   }
 });
 
-// Get user
+// get user
 export const getUser = asyncHandler(async (req, res) => {
   try {
-    const { id } = req.params;
-
-    // Kiểm tra ID hợp lệ
-    if (!mongoose.isValidObjectId(id)) {
-      return res.status(400).json({ message: "ID người dùng không hợp lệ" });
-    }
-
-    const user = await User.findById(id).select("-password");
+    const user = await User.findById(req.params.id).select("-password");
     if (!user) {
       return res.status(404).json({ message: "Không tìm thấy người dùng" });
     }
-
     res.status(200).json(user);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
+// get liked blogs by id
+export const getLikedBlogsById = asyncHandler(async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findById(id).populate("likedBlogs");
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    }
+
+    if (!user.likedBlogs || user.likedBlogs.length === 0) {
+      return res.status(200).json([]);
+    }
+
+    res.status(200).json(user.likedBlogs);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// add liked blogs
+export const addLikedBlog = asyncHandler(async (req, res) => {
+  const { blogId } = req.body;
+  const userId = req.user._id;
+
+  try {
+    // Tìm user và blog cùng lúc
+    const [user, blog] = await Promise.all([
+      User.findById(userId),
+      Blog.findById(blogId),
+    ]);
+
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    }
+    if (!blog) {
+      return res.status(404).json({ message: "Không tìm thấy bài blog" });
+    }
+
+    // Kiểm tra xem user có phải là tác giả của blog không
+    if (blog.author.equals(userId)) {
+      return res
+        .status(403)
+        .json({ message: "Bạn không thể thích bài blog của chính mình" });
+    }
+
+    // Kiểm tra xem user đã thích blog chưa
+    if (user.likedBlogs.includes(blogId)) {
+      return res
+        .status(400)
+        .json({ message: "Bạn đã thích bài blog này rồi!" });
+    }
+
+    // Cập nhật cả User.likedBlogs và Blog.likedUsers
+    user.likedBlogs.push(blogId);
+    blog.likedUsers.push(userId);
+
+    // Lưu cả hai
+    await Promise.all([user.save(), blog.save()]);
+
+    res.status(200).json({ message: "Thích bài blog thành công" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+// unliked single blog
+export const unlikedSingleBlog = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  const blogId = req.params.blogId;
+
+  if (!mongoose.isValidObjectId(blogId)) {
+    return res.status(400).json({ message: "ID bài blog không hợp lệ" });
+  }
+
+  try {
+    // Tìm user và blog
+    const [user, blog] = await Promise.all([
+      User.findById(userId),
+      Blog.findById(blogId),
+    ]);
+
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    }
+    if (!blog) {
+      return res.status(404).json({ message: "Không tìm thấy bài blog" });
+    }
+    // Kiểm tra xem user có phải là tác giả của blog không
+    if (blog.author.equals(userId)) {
+      return res
+        .status(404)
+        .json({ message: "Bạn không thể thích bài blog của chính mình" });
+    }
+    // Kiểm tra xem blog có trong likedBlogs không
+    if (!user.likedBlogs.includes(blogId)) {
+      return res.status(404).json({ message: "Blog này chưa được thích" });
+    }
+
+    // Xóa blogId khỏi User.likedBlogs và userId khỏi Blog.likedUsers
+    user.likedBlogs = user.likedBlogs.filter((id) => !id.equals(blogId));
+    blog.likedUsers = blog.likedUsers.filter((id) => !id.equals(userId));
+
+    // Lưu cả hai
+    await Promise.all([user.save(), blog.save()]);
+
+    res.status(200).json({ message: "Đã bỏ thích blog", blogId });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+//unliked all blogs
+export const unlikedAllBlogs = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    }
+
+    const deletedCount = user.likedBlogs.length;
+    if (deletedCount === 0) {
+      return res.status(200).json({ message: "Không có blog nào để bỏ thích" });
+    }
+
+    // Lấy tất cả blog mà user đã thích
+    const blogs = await Blog.find({ _id: { $in: user.likedBlogs } });
+
+    // Xóa userId khỏi likedUsers của từng blog
+    const blogUpdates = blogs.map((blog) =>
+      Blog.findByIdAndUpdate(
+        blog._id,
+        { $pull: { likedUsers: userId } },
+        { new: true }
+      )
+    );
+
+    // Xóa tất cả likedBlogs của user
+    user.likedBlogs = [];
+
+    // Thực hiện tất cả cập nhật
+    await Promise.all([...blogUpdates, user.save()]);
+
+    res.status(200).json({
+      message: `Đã bỏ thích ${deletedCount} bài blog`,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 // ADMIN ROUTE
 // Get all users
 export const getAllUsers = asyncHandler(async (req, res) => {
@@ -443,7 +586,8 @@ export const getAllUsers = asyncHandler(async (req, res) => {
       .select("-password")
       .skip(skip)
       .limit(limit)
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .populate("likedBlogs");
 
     // Kiểm tra nếu không có người dùng
     if (users.length === 0) {
