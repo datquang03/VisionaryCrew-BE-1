@@ -53,6 +53,7 @@ export const sendResetPasswordEmail = async (email, resetCode) => {
 export const sendProfileEmailVerificationCode = async (email, code) => {
   try {
     const transporter = createTransporter();
+    const verifyLink = `${process.env.FRONTEND_URL}/update-email/code`;
     await transporter.sendMail({
       from: '"Xác thực hồ sơ" <no-reply@example.com>',
       to: email,
@@ -61,6 +62,8 @@ export const sendProfileEmailVerificationCode = async (email, code) => {
         <p>Mã xác minh email mới của bạn là: <strong>${code}</strong></p>
         <p>Mã này sẽ hết hạn sau 15 phút.</p>
         <p>Nếu bạn không thực hiện thay đổi này, vui lòng bỏ qua email này.</p>
+                <a href="${verifyLink}">${verifyLink}</a>
+
       `,
     });
   } catch (error) {

@@ -184,20 +184,16 @@ export const verifyProfileEmailCode = asyncHandler(async (req, res) => {
   const { code } = req.body;
   const userId = req.user._id; // Lấy từ middleware protect
 
-  console.log("Received profile email code verification request:", {
-    code,
-    userId,
-  }); // Debug log
 
   // Tìm người dùng
   const user = await User.findOne({
     _id: userId,
     emailVerificationCode: code,
     emailVerificationExpires: { $gt: Date.now() },
+    
   });
 
   if (!user) {
-    console.log("Invalid code or user not found:", { code, userId }); // Debug log
     return res
       .status(400)
       .json({ message: "Mã xác minh không hợp lệ hoặc đã hết hạn." });
@@ -213,6 +209,7 @@ export const verifyProfileEmailCode = asyncHandler(async (req, res) => {
       },
       $unset: {
         tempEmail: "",
+        
         emailVerificationCode: "",
         emailVerificationExpires: "",
       },
@@ -221,11 +218,9 @@ export const verifyProfileEmailCode = asyncHandler(async (req, res) => {
   );
 
   if (!updatedUser) {
-    console.log("Update failed for code and ID:", { code, userId }); // Debug log
     return res.status(500).json({ message: "Lỗi khi cập nhật email hồ sơ." });
   }
 
-  console.log("Profile email verification successful for:", updatedUser.email); // Debug log
   res.status(200).json({ message: "Xác minh email hồ sơ thành công." });
 });
 
