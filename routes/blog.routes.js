@@ -5,6 +5,7 @@ import {
   deleteBlog,
   getAllBlogs,
   getBlogById,
+  getMostLikedBlogs,
   searchBlogs,
   updateBlog,
 } from "../controllers/blog/blog.controllers.js";
@@ -12,6 +13,7 @@ import { protectRouter, restrictToAdminOrDoctor } from "../middlewares/auth.js";
 
 const router = express.Router();
 router.get("/", getAllBlogs);
+router.get("/most-liked", getMostLikedBlogs);
 router.get("/search", searchBlogs);
 router.get("/:id", getBlogById);
 

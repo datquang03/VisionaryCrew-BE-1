@@ -21,12 +21,9 @@ export const register = asyncHandler(async (req, res) => {
     let parsedDateOfBirth;
 
     if (typeof dateOfBirth === "string") {
-      // Try DD-MM-YYYY format
       if (moment(dateOfBirth, "DD-MM-YYYY", true).isValid()) {
         parsedDateOfBirth = moment(dateOfBirth, "DD-MM-YYYY").toDate();
-      }
-      // Try YYYY-MM-DD format
-      else if (moment(dateOfBirth, "YYYY-MM-DD", true).isValid()) {
+      } else if (moment(dateOfBirth, "YYYY-MM-DD", true).isValid()) {
         parsedDateOfBirth = moment(dateOfBirth, "YYYY-MM-DD").toDate();
       } else {
         return res.status(400).json({
@@ -37,7 +34,7 @@ export const register = asyncHandler(async (req, res) => {
     } else {
       parsedDateOfBirth = new Date(dateOfBirth);
     }
-    // Kiểm tra ngày hợp lệ
+
     if (isNaN(parsedDateOfBirth.getTime())) {
       return res.status(400).json({ message: "Ngày sinh không hợp lệ" });
     }
@@ -57,6 +54,7 @@ export const register = asyncHandler(async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const verifyToken = crypto.randomBytes(32).toString("hex");
+    const verifyTokenExpires = Date.now() + 15 * 60 * 1000; // 15 phút
 
     const newUser = await User.create({
       username,
@@ -65,14 +63,29 @@ export const register = asyncHandler(async (req, res) => {
       password: hashedPassword,
       dateOfBirth: parsedDateOfBirth,
       verifyToken,
+      verifyTokenExpires,
       isVerified: false,
     });
 
+    // Gửi email xác minh
     await sendVerificationEmail(email, verifyToken);
+
+    // Lên lịch xóa tài khoản nếu không xác minh trong 15 phút
+    setTimeout(async () => {
+      try {
+        const user = await User.findById(newUser._id);
+        if (user && !user.isVerified) {
+          await User.deleteOne({ _id: user._id });
+          console.log(`Tài khoản ${user.email} đã bị xóa vì không xác minh.`);
+        }
+      } catch (error) {
+        console.error(`Lỗi khi xóa tài khoản ${newUser.email}:`, error);
+      }
+    }, 15 * 60 * 1000); // 15 phút
 
     res.status(201).json({
       message:
-        "Tạo tài khoản thành công. Vui lòng kiểm tra email để xác minh tài khoản.",
+        "Tạo tài khoản thành công. Vui lòng kiểm tra email để xác minh tài khoản trong vòng 15 phút.",
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -112,6 +125,8 @@ export const login = asyncHandler(async (req, res) => {
       isVerified: user.isVerified,
       balance: user.balance,
       role: user.role,
+      description: user.description,
+      likedBlogs: user.likedBlogs,
       token: generateToken(user._id),
     });
   } catch (error) {

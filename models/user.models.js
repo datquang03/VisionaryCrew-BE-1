@@ -82,8 +82,4 @@ const UserSchema = new Schema(
   { timestamps: true }
 );
 
-UserSchema.index({ email: 1 });
-UserSchema.index({ username: 1 });
-UserSchema.index({ phone: 1 });
-
 export default mongoose.model("User", UserSchema);

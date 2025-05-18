@@ -7,7 +7,7 @@ import connectDB from "./config/connectDB.js";
 import userRouter from "./routes/user.routes.js";
 import categoryRouter from "./routes/category.routes.js";
 import blogRouter from "./routes/blog.routes.js";
-import cleanupUnverifiedUsers from "./utils/cleanUnverifiedUser.js";
+import { cleanupUnverifiedAccounts } from "./utils/cleanUpUnverifiedEmail.js";
 
 dotenv.config();
 
@@ -15,7 +15,7 @@ const app = express();
 
 // Connect DB
 connectDB();
-cleanupUnverifiedUsers();
+cleanupUnverifiedAccounts();
 
 // Middleware
 app.use(cors());

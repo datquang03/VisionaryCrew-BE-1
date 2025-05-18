@@ -83,6 +83,95 @@ export const getBlogById = asyncHandler(async (req, res) => {
   res.status(200).json(blog);
 });
 
+// Lấy blog nhiều lượt thích nhất (public, hỗ trợ phân trang)
+export const getMostLikedBlogs = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10 } = req.query;
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+
+  const blogs = await Blog.aggregate([
+    // Tính số lượng likedUsers
+    {
+      $addFields: {
+        likedUsersCount: { $size: "$likedUsers" },
+      },
+    },
+    // Sắp xếp theo likedUsersCount giảm dần, sau đó theo createdAt giảm dần
+    {
+      $sort: {
+        likedUsersCount: -1,
+        createdAt: -1,
+      },
+    },
+    // Phân trang
+    {
+      $skip: skip,
+    },
+    {
+      $limit: parseInt(limit),
+    },
+    // Populate category
+    {
+      $lookup: {
+        from: "categories",
+        localField: "category",
+        foreignField: "_id",
+        as: "category",
+      },
+    },
+    {
+      $unwind: "$category",
+    },
+    // Populate author
+    {
+      $lookup: {
+        from: "users",
+        localField: "author",
+        foreignField: "_id",
+        as: "author",
+      },
+    },
+    {
+      $unwind: "$author",
+    },
+    // Populate likedUsers
+    {
+      $lookup: {
+        from: "users",
+        localField: "likedUsers",
+        foreignField: "_id",
+        as: "likedUsers",
+      },
+    },
+    // Dự án các trường cần thiết
+    {
+      $project: {
+        name: 1,
+        description: 1,
+        content: 1,
+        image: 1,
+        category: { name: 1, description: 1 },
+        author: { username: 1, avatar: 1, role: 1 },
+        likedUsers: { username: 1, avatar: 1, role: 1 },
+        comments: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        likedUsersCount: 1,
+      },
+    },
+  ]);
+
+  if (!blogs.length) {
+    return res.status(404).json({ message: "Không tìm thấy bài blog nào" });
+  }
+
+  res.status(200).json({
+    blogs,
+    page: parseInt(page),
+    limit: parseInt(limit),
+    total: await Blog.countDocuments({}),
+  });
+});
+
 // Cập nhật blog (admin hoặc doctor)
 export const updateBlog = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -173,8 +262,9 @@ export const searchBlogs = asyncHandler(async (req, res) => {
     .populate("category") // Populate full thông tin category
     .populate({
       path: "author",
-      select: "-password", // Loại bỏ password
-    });
+      select: "username avatar role", // Loại bỏ password
+    })
+    .populate({ path: "likedUsers", select: "username avatar role" });
 
   if (!blogs.length) {
     return res.status(404).json({ message: "Không tìm thấy bài blog phù hợp" });
