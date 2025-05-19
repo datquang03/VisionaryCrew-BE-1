@@ -7,6 +7,8 @@ import connectDB from "./config/connectDB.js";
 import userRouter from "./routes/user.routes.js";
 import categoryRouter from "./routes/category.routes.js";
 import blogRouter from "./routes/blog.routes.js";
+import commentRouter from "./routes/comment.routes.js";
+import transactionRouter from "./routes/transaction.routes.js";
 import { cleanupUnverifiedAccounts } from "./utils/cleanUpUnverifiedEmail.js";
 
 dotenv.config();
@@ -23,6 +25,8 @@ app.use(express.json());
 app.use("/api/users", userRouter);
 app.use("/api/categories", categoryRouter);
 app.use("/api/blogs", blogRouter);
+app.use("/api/comments", commentRouter);
+app.use("/api/transactions", transactionRouter);
 
 // Sample route
 app.get("/", (req, res) => {
