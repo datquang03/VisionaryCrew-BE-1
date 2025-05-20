@@ -9,6 +9,7 @@ import categoryRouter from "./routes/category.routes.js";
 import blogRouter from "./routes/blog.routes.js";
 import commentRouter from "./routes/comment.routes.js";
 import transactionRouter from "./routes/transaction.routes.js";
+import paymentRouter from "./routes/payment.routes.js";
 import { cleanupUnverifiedAccounts } from "./utils/cleanUpUnverifiedEmail.js";
 
 dotenv.config();
@@ -27,6 +28,7 @@ app.use("/api/categories", categoryRouter);
 app.use("/api/blogs", blogRouter);
 app.use("/api/comments", commentRouter);
 app.use("/api/transactions", transactionRouter);
+app.use("/api/payments", paymentRouter);
 
 // Sample route
 app.get("/", (req, res) => {
