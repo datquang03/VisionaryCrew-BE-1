@@ -184,13 +184,11 @@ export const verifyProfileEmailCode = asyncHandler(async (req, res) => {
   const { code } = req.body;
   const userId = req.user._id; // Lấy từ middleware protect
 
-
   // Tìm người dùng
   const user = await User.findOne({
     _id: userId,
     emailVerificationCode: code,
     emailVerificationExpires: { $gt: Date.now() },
-    
   });
 
   if (!user) {
@@ -209,7 +207,7 @@ export const verifyProfileEmailCode = asyncHandler(async (req, res) => {
       },
       $unset: {
         tempEmail: "",
-        
+
         emailVerificationCode: "",
         emailVerificationExpires: "",
       },
@@ -289,6 +287,47 @@ export const resetPassword = asyncHandler(async (req, res) => {
     user.password = hashedPassword;
     user.resetPasswordCode = undefined;
     user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.status(200).json({
+      message: "Đổi mật khẩu thành công",
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// reset password by old password
+export const resetPasswordByOldPassword = asyncHandler(async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    const userId = req.user._id;
+
+    // Tìm người dùng và lấy trường password
+    const user = await User.findById(userId).select("+password");
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    }
+
+    // Kiểm tra mật khẩu cũ
+    const isMatch = await bcrypt.compare(oldPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Mật khẩu cũ không đúng" });
+    }
+
+    // Kiểm tra xem mật khẩu mới có trùng với mật khẩu cũ không
+    const isSamePassword = await bcrypt.compare(newPassword, user.password);
+    if (isSamePassword) {
+      return res.status(400).json({
+        message: "Mật khẩu mới không được trùng với mật khẩu cũ",
+      });
+    }
+
+    // Hash mật khẩu mới
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Cập nhật mật khẩu
+    user.password = hashedPassword;
     await user.save();
 
     res.status(200).json({

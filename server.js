@@ -10,7 +10,10 @@ import blogRouter from "./routes/blog.routes.js";
 import commentRouter from "./routes/comment.routes.js";
 import transactionRouter from "./routes/transaction.routes.js";
 import paymentRouter from "./routes/payment.routes.js";
-import { cleanupUnverifiedAccounts } from "./utils/cleanUpUnverifiedEmail.js";
+import {
+  cleanupExpiredEmailVerifications,
+  cleanupUnverifiedAccounts,
+} from "./utils/cleanUpUnverifiedEmail.js";
 
 dotenv.config();
 
@@ -19,6 +22,7 @@ const app = express();
 // Connect DB
 connectDB();
 cleanupUnverifiedAccounts();
+cleanupExpiredEmailVerifications();
 
 // Middleware
 app.use(cors());

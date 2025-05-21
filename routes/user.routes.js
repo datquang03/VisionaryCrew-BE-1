@@ -13,6 +13,7 @@ import {
   unlikedSingleBlog,
   unlikedAllBlogs,
   getLikedBlogsById,
+  resetPasswordByOldPassword,
 } from "../controllers/user.controllers.js";
 import { admin, protectRouter } from "../middlewares/auth.js";
 
@@ -37,6 +38,11 @@ router.post("/like", protectRouter, addLikedBlog);
 router.get("/like/:id", protectRouter, getLikedBlogsById);
 router.delete("/like/:blogId", protectRouter, unlikedSingleBlog);
 router.delete("/like", protectRouter, unlikedAllBlogs);
+router.post(
+  "/reset-password-by-old",
+  protectRouter,
+  resetPasswordByOldPassword
+);
 
 // ADMIN ROUTER
 router.get("/", protectRouter, admin, getAllUsers);
