@@ -1,4 +1,4 @@
-// server.js (với type: "module")
+// server.js
 
 import express from "express";
 import cors from "cors";
@@ -19,11 +19,6 @@ dotenv.config();
 
 const app = express();
 
-// Connect DB
-connectDB();
-cleanupUnverifiedAccounts();
-cleanupExpiredEmailVerifications();
-
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -39,8 +34,24 @@ app.get("/", (req, res) => {
   res.json({ message: "Server is running!" });
 });
 
-// Start server
+// Start server after MongoDB connects
 const PORT = process.env.PORT || 8000;
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-});
+
+const startServer = async () => {
+  try {
+    await connectDB(); // Đợi kết nối thành công
+
+    // Sau khi kết nối thành công, mới cleanup
+    await cleanupUnverifiedAccounts();
+    await cleanupExpiredEmailVerifications();
+
+    app.listen(PORT, () => {
+      console.log(`🚀 Server listening on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error("❌ Server failed to start:", error);
+    process.exit(1);
+  }
+};
+
+startServer();
