@@ -18,12 +18,14 @@ export const createVnpayPaymentQR = async (req, res) => {
       return res.status(400).json({ message: "Mã đơn hàng không hợp lệ" });
     }
 
-    const vnp_TmnCode = process.env.VNPAY_TMN_CODE;
-    const vnp_HashSecret = process.env.VNPAY_HASH_SECRET;
-    const vnp_Url = process.env.VNPAY_URL;
-    const vnp_ReturnUrl = process.env.VNPAY_RETURN_URL;
+    const tmnCode = process.env.VNPAY_TMN_CODE;
+    const secretKey = process.env.VNPAY_HASH_SECRET;
+    const vnpUrl = process.env.VNPAY_URL;
+    const returnUrl = process.env.VNPAY_RETURN_URL;
 
-    if (!vnp_TmnCode || !vnp_HashSecret || !vnp_Url || !vnp_ReturnUrl) {
+    let bankCode = req.body.bankCode;
+
+    if (!tmnCode || !secretKey || !vnpUrl || !returnUrl) {
       return res.status(500).json({ message: "Cấu hình VNPAY không đầy đủ" });
     }
 
@@ -40,54 +42,69 @@ export const createVnpayPaymentQR = async (req, res) => {
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-zA-Z0-9 ]/g, "");
 
-    const vnp_Params = {
-      vnp_Version: "2.1.0",
-      vnp_Command: "pay",
-      vnp_TmnCode,
-      vnp_Locale: "vn",
-      vnp_CurrCode: "VND",
-      vnp_TxnRef: orderId,
-      vnp_OrderInfo: sanitizedOrderInfo,
-      vnp_OrderType: "other",
-      vnp_Amount: Math.round(amount * 100).toString(), // Chuyển thành chuỗi
-      vnp_ReturnUrl,
-      vnp_IpAddr: ipAddr,
-      vnp_CreateDate: createDate,
-      vnp_BankCode: "VNPAYQR",
-    };
+    let locale = req.body.language;
+    if (locale === null || locale === "") {
+      locale = "vn";
+    }
 
-    // B1: Sort keys alphabetically
-    const sortedParams = {};
-    Object.keys(vnp_Params)
-      .sort()
-      .forEach((key) => {
-        if (vnp_Params[key] !== undefined && vnp_Params[key] !== null) {
-          sortedParams[key] = String(vnp_Params[key]).trim(); // Loại bỏ khoảng trắng
-        }
-      });
+    const currCode = "VND";
 
-    // B2: Build sign data (without encoding)
-    const signData = qs.stringify(sortedParams, { encode: false });
-    console.log("signData:", signData); // Debug chuỗi signData
+    let vnp_Params = {};
 
-    // B3: Generate hash
-    const hmac = crypto.createHmac("sha512", vnp_HashSecret.trim()); // Loại bỏ khoảng trắng trong HashSecret
-    const vnp_SecureHash = hmac.update(Buffer.from(signData, "utf-8")).digest("hex");
-    console.log("vnp_SecureHash:", vnp_SecureHash); // Debug chữ ký
+    vnp_Params["vnp_Version"] = "2.1.0";
+    vnp_Params["vnp_Command"] = "pay";
+    vnp_Params["vnp_TmnCode"] = tmnCode;
+    vnp_Params["vnp_Locale"] = locale;
+    vnp_Params["vnp_CurrCode"] = currCode;
+    vnp_Params["vnp_TxnRef"] = orderId;
+    vnp_Params["vnp_OrderInfo"] = "Thanh toan cho ma GD:" + orderId;
+    vnp_Params["vnp_OrderType"] = "other";
+    vnp_Params["vnp_Amount"] = amount * 100;
+    vnp_Params["vnp_ReturnUrl"] = returnUrl;
+    vnp_Params["vnp_IpAddr"] = ipAddr;
+    vnp_Params["vnp_CreateDate"] = createDate;
+    if (bankCode !== null && bankCode !== "") {
+      vnp_Params["vnp_BankCode"] = bankCode;
+    }
 
-    // B4: Add hash to final params
-    sortedParams.vnp_SecureHash = vnp_SecureHash;
+    vnp_Params = sortObject(vnp_Params);
 
-    // B5: Final payment URL
-    const paymentUrl = `${vnp_Url}?${qs.stringify(sortedParams, { encode: true })}`;
-    console.log("paymentUrl:", paymentUrl); // Debug URL
+    const signData = qs.stringify(vnp_Params, { encode: false });
 
-    // B6: Generate QR code
+    // Generate the secure hash
+    const hmac = crypto.createHmac("sha512", secretKey.trim());
+    const signed = hmac.update(Buffer.from(signData, "utf-8")).digest("hex");
+    vnp_Params["vnp_SecureHash"] = signed;
+
+    // Generate the payment URL
+    const paymentUrl = `${vnpUrl}?${qs.stringify(vnp_Params, {
+      encode: false,
+    })}`;
+
     const qrImage = await QRCode.toDataURL(paymentUrl);
 
     res.json({ paymentUrl, qrImage });
   } catch (error) {
     console.error("Lỗi tạo thanh toán VNPAY:", error);
-    res.status(500).json({ message: "Không tạo được thanh toán VNPAY", error: error.message });
+    res.status(500).json({
+      message: "Không tạo được thanh toán VNPAY",
+      error: error.message,
+    });
   }
 };
+
+function sortObject(obj) {
+  let sorted = {};
+  let str = [];
+  let key;
+  for (key in obj) {
+    if (obj.hasOwnProperty(key)) {
+      str.push(encodeURIComponent(key));
+    }
+  }
+  str.sort();
+  for (key = 0; key < str.length; key++) {
+    sorted[str[key]] = encodeURIComponent(obj[str[key]]).replace(/%20/g, "+");
+  }
+  return sorted;
+}
