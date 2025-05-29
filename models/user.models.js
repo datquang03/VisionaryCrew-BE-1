@@ -78,6 +78,12 @@ const UserSchema = new Schema(
         ref: "Blog",
       },
     ],
+    conversations: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Message",
+      },
+    ],
   },
   { timestamps: true }
 );
