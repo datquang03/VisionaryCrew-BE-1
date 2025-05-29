@@ -624,6 +624,22 @@ export const unlikedAllBlogs = asyncHandler(async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
+export const getDoctors = async (req, res) => {
+  try {
+    const doctors = await User.find({ role: "doctor" }).select(
+      "username email _id role avatar"
+    );
+    if (!doctors.length) {
+      return res.status(404).json({ message: "No doctors found" });
+    }
+    res.status(200).json(doctors);
+  } catch (error) {
+    console.error("Error fetching doctors:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // ADMIN ROUTE
 // Get all users
 export const getAllUsers = asyncHandler(async (req, res) => {

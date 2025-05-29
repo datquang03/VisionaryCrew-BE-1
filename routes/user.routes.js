@@ -14,6 +14,7 @@ import {
   unlikedAllBlogs,
   getLikedBlogsById,
   resetPasswordByOldPassword,
+  getDoctors,
 } from "../controllers/user.controllers.js";
 import { admin, protectRouter } from "../middlewares/auth.js";
 
@@ -25,6 +26,7 @@ router.post("/login", login);
 router.get("/verify-email/:token", verifyEmail);
 router.post("/request-password-reset", requestPasswordReset);
 router.post("/reset-password", resetPassword);
+router.get("/doctors", getDoctors);
 router.get("/:id", getUser);
 
 // USER ROUTER

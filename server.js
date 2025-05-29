@@ -1,8 +1,8 @@
-// server.js
-
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import { createServer } from "http";
+import { Server } from "socket.io";
 import connectDB from "./config/connectDB.js";
 import userRouter from "./routes/user.routes.js";
 import categoryRouter from "./routes/category.routes.js";
@@ -14,13 +14,25 @@ import {
   cleanupExpiredEmailVerifications,
   cleanupUnverifiedAccounts,
 } from "./utils/cleanUpUnverifiedEmail.js";
+import setupSocket from "./config/socketHandler.js";
 
 dotenv.config();
 
 const app = express();
+const server = createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: process.env.FRONTEND_URL,
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+});
+
+// Tích hợp Socket.IO
+setupSocket(io);
 
 // Middleware
-app.use(cors());
+app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
 app.use(express.json());
 app.use("/api/users", userRouter);
 app.use("/api/categories", categoryRouter);
@@ -39,13 +51,11 @@ const PORT = process.env.PORT || 8000;
 
 const startServer = async () => {
   try {
-    await connectDB(); // Đợi kết nối thành công
-
-    // Sau khi kết nối thành công, mới cleanup
+    await connectDB();
     await cleanupUnverifiedAccounts();
     await cleanupExpiredEmailVerifications();
 
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`🚀 Server listening on port ${PORT}`);
     });
   } catch (error) {
