@@ -11,6 +11,7 @@ import commentRouter from "./routes/comment.routes.js";
 import transactionRouter from "./routes/transaction.routes.js";
 import paymentRouter from "./routes/payment.routes.js";
 import messageRouter from "./routes/message.routes.js ";
+import orderRouter from "./routes/order.route.js";
 import {
   cleanupExpiredEmailVerifications,
   cleanupUnverifiedAccounts,
@@ -42,6 +43,7 @@ app.use("/api/comments", commentRouter);
 app.use("/api/transactions", transactionRouter);
 app.use("/api/payments", paymentRouter);
 app.use("/api/messages", messageRouter);
+app.use("/api/order", orderRouter);
 
 // Sample route
 app.get("/", (req, res) => {
