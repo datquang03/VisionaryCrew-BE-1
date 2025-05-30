@@ -1,5 +1,6 @@
 import Message from "../models/message.models.js";
 import User from "../models/user.models.js";
+import { Server } from "socket.io";
 
 export const sendMessage = async (req, res) => {
   try {
@@ -20,7 +21,27 @@ export const sendMessage = async (req, res) => {
       $push: { conversations: message._id },
     });
 
-    res.status(201).json(message);
+    // Populate sender and receiver details
+    const populatedMessage = await Message.findById(message._id)
+      .populate("sender", "username avatar")
+      .populate("receiver", "username avatar");
+
+    // Prepare message data
+    const messageData = {
+      _id: populatedMessage._id,
+      sender: populatedMessage.sender,
+      receiver: populatedMessage.receiver,
+      content: populatedMessage.content,
+      createdAt: populatedMessage.createdAt,
+      updatedAt: populatedMessage.updatedAt,
+    };
+
+    // Emit to Socket.IO clients
+    const io = req.app.get("io"); // Assuming io is attached to app in server.js
+    io.to(receiverId).emit("receive-message", messageData);
+    io.to(senderId).emit("receive-message", messageData);
+
+    res.status(201).json(populatedMessage);
   } catch (error) {
     res.status(500).json({ message: "Error sending message", error });
   }

@@ -1,131 +1,134 @@
 import User from "../models/user.models.js";
 import Message from "../models/message.models.js";
+import jwt from "jsonwebtoken";
+
 const setupSocket = (io) => {
-  io.on("connection", (socket) => {
+  io.on("connection", async (socket) => {
     console.log("User connected:", socket.id);
 
-    // Tham gia room (nếu cần gọi theo room)
-    socket.on("join-room", (roomId) => {
-      socket.join(roomId);
-      socket.to(roomId).emit("user-connected", socket.id);
-    });
+    // Authenticate user using token
+    const token = socket.handshake.auth.token;
+    if (!token) {
+      console.log("No token provided, disconnecting:", socket.id);
+      socket.disconnect();
+      return;
+    }
 
-    // Nhận và chuyển tiếp SDP offer
-    socket.on("offer", (data) => {
-      socket
-        .to(data.target)
-        .emit("offer", { sdp: data.sdp, sender: socket.id });
-    });
+    try {
+      // Verify token and get userId
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const userId = decoded.id; // Assuming token contains user ID in 'id' field
 
-    // Nhận và chuyển tiếp SDP answer
-    socket.on("answer", (data) => {
-      socket
-        .to(data.target)
-        .emit("answer", { sdp: data.sdp, sender: socket.id });
-    });
+      // Join user to their own userId room
+      socket.join(userId);
+      console.log(`User ${userId} joined room ${userId}`);
 
-    // Chuyển tiếp ICE candidate
-    socket.on("ice-candidate", (data) => {
-      socket.to(data.target).emit("ice-candidate", {
-        candidate: data.candidate,
-        sender: socket.id,
+      // Handle chat message
+      socket.on("send-message", async (data) => {
+        const { senderId, receiverId, content } = data;
+
+        try {
+          // Save the message to the database
+          const message = new Message({
+            sender: senderId,
+            receiver: receiverId,
+            content,
+          });
+          await message.save();
+
+          // Add the message to both users' conversations
+          await User.findByIdAndUpdate(senderId, {
+            $push: { conversations: message._id },
+          });
+          await User.findByIdAndUpdate(receiverId, {
+            $push: { conversations: message._id },
+          });
+
+          // Populate sender and receiver details
+          const populatedMessage = await Message.findById(message._id)
+            .populate("sender", "username avatar")
+            .populate("receiver", "username avatar");
+
+          // Prepare message data
+          const messageData = {
+            _id: populatedMessage._id,
+            sender: populatedMessage.sender,
+            receiver: populatedMessage.receiver,
+            content: populatedMessage.content,
+            createdAt: populatedMessage.createdAt,
+            updatedAt: populatedMessage.updatedAt,
+          };
+
+          // Emit to receiver and sender
+          io.to(receiverId).emit("receive-message", messageData);
+          io.to(senderId).emit("receive-message", messageData);
+        } catch (error) {
+          console.error("Error saving message:", error);
+        }
       });
-    });
 
-    // Handle chat message
-    socket.on("send-message", async (data) => {
-      const { senderId, receiverId, content } = data;
+      // Handle delete message
+      socket.on("delete-message", async (data) => {
+        const { messageId, userId, receiverId } = data;
 
-      try {
-        // Save the message to the database
-        const message = new Message({
-          sender: senderId,
-          receiver: receiverId,
-          content,
-        });
-        await message.save();
+        try {
+          const message = await Message.findById(messageId);
+          if (!message || message.sender.toString() !== userId) {
+            return;
+          }
 
-        // Add the message to both users' conversations
-        await User.findByIdAndUpdate(senderId, {
-          $push: { conversations: message._id },
-        });
-        await User.findByIdAndUpdate(receiverId, {
-          $push: { conversations: message._id },
-        });
+          await Message.findByIdAndDelete(messageId);
+          await User.updateMany(
+            { conversations: messageId },
+            { $pull: { conversations: messageId } }
+          );
 
-        // Emit the message to the receiver and sender
-        const messageData = {
-          senderId,
-          receiverId,
-          content,
-          timestamp: message.createdAt,
-          _id: message._id,
-        };
-        socket.to(receiverId).emit("receive-message", messageData);
-        socket.emit("receive-message", messageData);
-      } catch (error) {
-        console.error("Error saving message:", error);
-      }
-    });
-
-    // Handle delete message
-    socket.on("delete-message", async (data) => {
-      const { messageId, userId, receiverId } = data;
-
-      try {
-        const message = await Message.findById(messageId);
-        if (!message || message.sender.toString() !== userId) {
-          return;
+          // Notify both users
+          io.to(receiverId).emit("message-deleted", { messageId });
+          io.to(userId).emit("message-deleted", { messageId });
+        } catch (error) {
+          console.error("Error deleting message:", error);
         }
+      });
 
-        await Message.findByIdAndDelete(messageId);
-        await User.updateMany(
-          { conversations: messageId },
-          { $pull: { conversations: messageId } }
-        );
+      // Handle edit message
+      socket.on("edit-message", async (data) => {
+        const { messageId, userId, content, receiverId } = data;
 
-        // Notify both users
-        socket.to(receiverId).emit("message-deleted", { messageId });
-        socket.emit("message-deleted", { messageId });
-      } catch (error) {
-        console.error("Error deleting message:", error);
-      }
-    });
+        try {
+          const message = await Message.findById(messageId);
+          if (!message || message.sender.toString() !== userId) {
+            return;
+          }
 
-    // Handle edit message
-    socket.on("edit-message", async (data) => {
-      const { messageId, userId, content, receiverId } = data;
+          message.content = content;
+          message.updatedAt = new Date();
+          await message.save();
 
-      try {
-        const message = await Message.findById(messageId);
-        if (!message || message.sender.toString() !== userId) {
-          return;
+          // Notify both users
+          io.to(receiverId).emit("message-edited", {
+            messageId,
+            content,
+            updatedAt: message.updatedAt,
+          });
+          io.to(userId).emit("message-edited", {
+            messageId,
+            content,
+            updatedAt: message.updatedAt,
+          });
+        } catch (error) {
+          console.error("Error editing message:", error);
         }
+      });
 
-        message.content = content;
-        message.updatedAt = new Date();
-        await message.save();
-
-        // Notify both users
-        socket.to(receiverId).emit("message-edited", {
-          messageId,
-          content,
-          updatedAt: message.updatedAt,
-        });
-        socket.emit("message-edited", {
-          messageId,
-          content,
-          updatedAt: message.updatedAt,
-        });
-      } catch (error) {
-        console.error("Error editing message:", error);
-      }
-    });
-
-    socket.on("disconnect", () => {
-      console.log("User disconnected:", socket.id);
-      socket.broadcast.emit("user-disconnected", socket.id);
-    });
+      socket.on("disconnect", () => {
+        console.log("User disconnected:", socket.id);
+        socket.broadcast.emit("user-disconnected", socket.id);
+      });
+    } catch (error) {
+      console.error("Token verification failed:", error);
+      socket.disconnect();
+    }
   });
 };
 

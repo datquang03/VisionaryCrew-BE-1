@@ -29,7 +29,7 @@ const io = new Server(server, {
   },
 });
 
-// Tích hợp Socket.IO
+app.set("io", io);
 setupSocket(io);
 
 // Middleware
