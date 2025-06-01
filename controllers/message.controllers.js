@@ -67,6 +67,76 @@ export const getMessages = async (req, res) => {
     res.status(500).json({ message: "Error fetching messages", error });
   }
 };
+// Get message history for the logged-in user
+export const getMessageHistory = async (req, res) => {
+  try {
+    const { userId } = req.params; // Assuming userId is the logged-in user's ID
+
+    // Find all messages where the user is either the sender or receiver
+    const messages = await Message.find({
+      $or: [{ sender: userId }, { receiver: userId }],
+    })
+      .populate("sender", "username avatar")
+      .populate("receiver", "username avatar")
+      .sort({ createdAt: -1 }); // Sort by most recent first
+
+    // Create a map to store unique conversation partners
+    const conversations = new Map();
+
+    // Iterate through messages to group by conversation partner
+    messages.forEach((message) => {
+      const otherUserId =
+        message.sender._id.toString() === userId
+          ? message.receiver._id.toString()
+          : message.sender._id.toString();
+      const otherUser =
+        message.sender._id.toString() === userId
+          ? message.receiver
+          : message.sender;
+
+      if (!conversations.has(otherUserId)) {
+        conversations.set(otherUserId, {
+          user: {
+            _id: otherUser._id,
+            username: otherUser.username,
+            avatar: otherUser.avatar,
+          },
+          lastMessage: {
+            _id: message._id,
+            content: message.content,
+            createdAt: message.createdAt,
+            isSender: message.sender._id.toString() === userId,
+            read: message.read,
+          },
+        });
+      } else {
+        // Update last message if this message is more recent
+        const existing = conversations.get(otherUserId);
+        if (new Date(message.createdAt) > new Date(existing.lastMessage.createdAt)) {
+          conversations.set(otherUserId, {
+            ...existing,
+            lastMessage: {
+              _id: message._id,
+              content: message.content,
+              createdAt: message.createdAt,
+              isSender: message.sender._id.toString() === userId,
+              read: message.read,
+            },
+          });
+        }
+      }
+    });
+
+    // Convert map values to array and sort by last message date
+    const conversationList = Array.from(conversations.values()).sort(
+      (a, b) => new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt)
+    );
+
+    res.status(200).json(conversationList);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 // Mark messages as read
 export const markMessagesAsRead = async (req, res) => {

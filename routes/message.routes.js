@@ -6,6 +6,7 @@ import {
   sendMessage,
   deleteMessage,
   editMessage,
+  getMessageHistory,
 } from "../controllers/message.controllers.js";
 import { protectRouter } from "../middlewares/auth.js";
 
@@ -13,6 +14,9 @@ const router = express.Router();
 
 // Send a new message
 router.post("/send", protectRouter, sendMessage);
+
+// Get message history
+router.get("/history/:userId", protectRouter, getMessageHistory);
 
 // Get messages between two users
 router.get("/:userId/:otherUserId", protectRouter, getMessages);

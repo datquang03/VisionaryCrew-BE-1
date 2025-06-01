@@ -16,9 +16,6 @@ export const createVnpayPaymentQR = async (req, res) => {
     if (!amount || isNaN(amount) || amount <= 0) {
       return res.status(400).json({ message: "Số tiền không hợp lệ" });
     }
-    if (!orderId || !/^[a-zA-Z0-9]+$/.test(orderId)) {
-      return res.status(400).json({ message: "Mã đơn hàng không hợp lệ" });
-    }
 
     const tmnCode = process.env.VNPAY_TMN_CODE;
     const secretKey = process.env.VNPAY_HASH_SECRET;

@@ -4,7 +4,6 @@ import jwt from "jsonwebtoken";
 
 const setupSocket = (io) => {
   io.on("connection", async (socket) => {
-    console.log("User connected:", socket.id);
 
     // Authenticate user using token
     const token = socket.handshake.auth.token;
@@ -21,8 +20,7 @@ const setupSocket = (io) => {
 
       // Join user to their own userId room
       socket.join(userId);
-      console.log(`User ${userId} joined room ${userId}`);
-
+      res.status(200).json({ message: "Connected successfully" });
       // Handle chat message
       socket.on("send-message", async (data) => {
         const { senderId, receiverId, content } = data;
@@ -122,7 +120,6 @@ const setupSocket = (io) => {
       });
 
       socket.on("disconnect", () => {
-        console.log("User disconnected:", socket.id);
         socket.broadcast.emit("user-disconnected", socket.id);
       });
     } catch (error) {
