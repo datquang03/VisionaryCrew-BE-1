@@ -7,6 +7,7 @@ const setupSocket = (io) => {
 
     // Authenticate user using token
     const token = socket.handshake.auth.token;
+    console.log(token)
     if (!token) {
       console.log("No token provided, disconnecting:", socket.id);
       socket.disconnect();
@@ -20,7 +21,6 @@ const setupSocket = (io) => {
 
       // Join user to their own userId room
       socket.join(userId);
-      res.status(200).json({ message: "Connected successfully" });
       // Handle chat message
       socket.on("send-message", async (data) => {
         const { senderId, receiverId, content } = data;

@@ -13,7 +13,6 @@ export const sendMessage = async (req, res) => {
     });
     await message.save();
 
-    // Add the message to both users' conversations
     await User.findByIdAndUpdate(senderId, {
       $push: { conversations: message._id },
     });
@@ -21,12 +20,10 @@ export const sendMessage = async (req, res) => {
       $push: { conversations: message._id },
     });
 
-    // Populate sender and receiver details
     const populatedMessage = await Message.findById(message._id)
       .populate("sender", "username avatar")
       .populate("receiver", "username avatar");
 
-    // Prepare message data
     const messageData = {
       _id: populatedMessage._id,
       sender: populatedMessage.sender,
@@ -36,13 +33,14 @@ export const sendMessage = async (req, res) => {
       updatedAt: populatedMessage.updatedAt,
     };
 
-    // Emit to Socket.IO clients
-    const io = req.app.get("io"); // Assuming io is attached to app in server.js
+    console.log(`Emitting receive-message to ${senderId} and ${receiverId}`, messageData); // Debug log
+    const io = req.app.get("io");
     io.to(receiverId).emit("receive-message", messageData);
     io.to(senderId).emit("receive-message", messageData);
 
     res.status(201).json(populatedMessage);
   } catch (error) {
+    console.error("Error sending message:", error);
     res.status(500).json({ message: "Error sending message", error });
   }
 };
