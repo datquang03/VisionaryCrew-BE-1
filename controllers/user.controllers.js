@@ -464,7 +464,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
 // get user
 export const getUser = asyncHandler(async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select("-password");
+    const user = await User.findById(req.params.id).select("-password -conversations").populate("likedBlogs");
     if (!user) {
       return res.status(404).json({ message: "Không tìm thấy người dùng" });
     }
