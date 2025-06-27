@@ -12,6 +12,10 @@ import transactionRouter from "./routes/transaction.routes.js";
 import paymentRouter from "./routes/payment.routes.js";
 import messageRouter from "./routes/message.routes.js ";
 import orderRouter from "./routes/order.route.js";
+import chatRouter from "./routes/chatAI.routes.js";
+import doctorRequestRouter from "./routes/doctorRequest.routes.js";
+import medicineRouter from "./routes/medicine.routes.js";
+import medicalRecordRouter from "./routes/medicalRecord.routes.js";
 import {
   cleanupExpiredEmailVerifications,
   cleanupUnverifiedAccounts,
@@ -44,6 +48,10 @@ app.use("/api/transactions", transactionRouter);
 app.use("/api/payments", paymentRouter);
 app.use("/api/messages", messageRouter);
 app.use("/api/order", orderRouter);
+app.use("/api/chat", chatRouter);
+app.use("/api/medicines", medicineRouter);
+app.use("/api/doctor-requests", doctorRequestRouter);
+app.use("/api/record", medicalRecordRouter);
 
 // Sample route
 app.get("/", (req, res) => {

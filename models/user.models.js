@@ -84,6 +84,12 @@ const UserSchema = new Schema(
         ref: "Message",
       },
     ],
+    savedMedicalRecords: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "MedicalRecord",
+      },
+    ],
   },
   { timestamps: true }
 );

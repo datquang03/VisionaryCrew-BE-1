@@ -15,6 +15,8 @@ import {
   getLikedBlogsById,
   resetPasswordByOldPassword,
   getDoctors,
+  savedMedicalRecord,
+  getAllSavedMedicalRecordsById
 } from "../controllers/user.controllers.js";
 import { admin, protectRouter } from "../middlewares/auth.js";
 
@@ -37,6 +39,8 @@ router.post(
   verifyProfileEmailCode
 );
 router.post("/like", protectRouter, addLikedBlog);
+router.post("/record/save", protectRouter, savedMedicalRecord);
+router.get("/record/save/:id",protectRouter, getAllSavedMedicalRecordsById)
 router.get("/like/:id", protectRouter, getLikedBlogsById);
 router.delete("/like/:blogId", protectRouter, unlikedSingleBlog);
 router.delete("/like", protectRouter, unlikedAllBlogs);

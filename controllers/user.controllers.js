@@ -2,6 +2,7 @@ import User from "../models/user.models.js";
 import bcrypt from "bcryptjs";
 import asyncHandler from "express-async-handler";
 import { generateToken } from "../middlewares/auth.js";
+import medicalRecord from "../models/medicalRecord.models.js";
 import crypto from "crypto";
 import moment from "moment";
 import Blog from "../models/blog/blog.models.js";
@@ -464,7 +465,17 @@ export const updateProfile = asyncHandler(async (req, res) => {
 // get user
 export const getUser = asyncHandler(async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select("-password -conversations").populate("likedBlogs");
+    const user = await User.findById(req.params.id)
+      .select("-password -conversations")
+      .populate("likedBlogs")
+      .populate({
+        path: "savedMedicalRecords",
+        populate: {
+          path: "createdBy",
+          model: "User", // Đảm bảo bạn dùng đúng model name đã register
+          select: "_id username email", // chỉ populate những field cần thiết
+        },
+      });
     if (!user) {
       return res.status(404).json({ message: "Không tìm thấy người dùng" });
     }
@@ -639,6 +650,65 @@ export const getDoctors = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+// Save a medical record
+export const savedMedicalRecord = asyncHandler(async (req, res) => {
+  const { medicalRecordId } = req.body;
+  const userId = req.user._id;
+
+  try {
+
+    // Tìm user và medical record cùng lúc
+    const [user, record] = await Promise.all([
+      User.findById(userId),
+      medicalRecord.findById(medicalRecordId),
+    ]);
+
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    }
+    if (!record) {
+      return res.status(404).json({ message: "Không tìm thấy hồ sơ y tế" });
+    }
+
+    // Kiểm tra xem user có phải là người tạo hồ sơ y tế không
+    if (!record.createdBy.equals(userId)) {
+      return res
+        .status(403)
+        .json({ message: "Chỉ người tạo hồ sơ y tế mới có quyền lưu" });
+    }
+
+    // Thêm medicalRecordId vào savedMedicalRecords của user
+    user.savedMedicalRecords.push(medicalRecordId);
+
+    // Lưu user
+    await user.save();
+
+    res.status(200).json({ message: "Lưu hồ sơ y tế thành công" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// get all saved medical record by id
+export const getAllSavedMedicalRecordsById = asyncHandler(async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).populate(
+      "savedMedicalRecords"
+    );
+    const count = user.savedMedicalRecords.length;
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    }
+     if (!user.savedMedicalRecords.length) {
+      return res.status(404).json({ message: "Người dùng chưa có hồ sơ" });
+    }
+    return res.status(200).json({message:`Người dùng có ${count} hồ sơ y tế`,savedMedicalRecords:user.savedMedicalRecords});
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+})
+
+
 
 // ADMIN ROUTE
 // Get all users
@@ -655,7 +725,7 @@ export const getAllUsers = asyncHandler(async (req, res) => {
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 })
-      .populate("likedBlogs");
+      .populate("likedBlogs savedMedicalRecords");
 
     // Kiểm tra nếu không có người dùng
     if (users.length === 0) {
